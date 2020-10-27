@@ -13,7 +13,9 @@ import java.util.List;
 import java.util.Random;
 
 public class Main {
-  private static final String PD_ADDRESS = "127.0.0.1:2379";
+//  private static final String PD_ADDRESS = "127.0.0.1:2379";
+  private static final String PD_ADDRESS = "172.16.22.140:2379,172.16.22.141:2379,172.16.22.142:2379";
+
   private static final int DOCUMENT_SIZE = 1 << 10;
   private static final int NUM_COLLECTIONS = 10;
   private static final int NUM_DOCUMENTS = 100;
