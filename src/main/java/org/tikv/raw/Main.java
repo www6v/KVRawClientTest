@@ -20,8 +20,8 @@ public class Main {
   private static final int DOCUMENT_SIZE = 1 << 10;
   private static final int NUM_COLLECTIONS = 10;
   private static final int NUM_DOCUMENTS = 100;
-  private static final int NUM_READERS = 1*100;
-  private static final int NUM_WRITERS = 32*3;
+  private static final int NUM_READERS = 1;
+  private static final int NUM_WRITERS = 32;
   private static final Logger logger = Logger.getLogger("Main");
 
   private static List<Kvrpcpb.KvPair> scan(RawKVClient client, String collection) {
@@ -57,11 +57,11 @@ public class Main {
     TiConfiguration conf = TiConfiguration.createRawDefault(PD_ADDRESS);
     TiSession session = TiSession.create(conf);
 
-    Channel<Long> readTimes = new BufferedChannel<>(NUM_READERS * 10);
-    Channel<Long> writeTimes = new BufferedChannel<>(NUM_WRITERS * 10);
+    Channel<Long> readTimes = new BufferedChannel<>(NUM_READERS);
+    Channel<Long> writeTimes = new BufferedChannel<>(NUM_WRITERS);
 
-    Channel<ReadAction> readActions = new BufferedChannel<>(NUM_READERS * 10);
-    Channel<WriteAction> writeActions = new BufferedChannel<>(NUM_WRITERS * 10);
+    Channel<ReadAction> readActions = new BufferedChannel<>(NUM_READERS);
+    Channel<WriteAction> writeActions = new BufferedChannel<>(NUM_WRITERS);
 
     new Thread(() -> {
       Random rand = new Random(System.nanoTime());
