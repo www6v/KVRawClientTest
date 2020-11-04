@@ -12,33 +12,32 @@ import shade.com.google.protobuf.ByteString;
 import java.util.List;
 import java.util.Random;
 
-public class Temp {
+public class RawClientReadTest {
 //  private static final String PD_ADDRESS = "127.0.0.1:2379";
   private static final String PD_ADDRESS = "172.16.22.140:2379,172.16.22.141:2379,172.16.22.142:2379";
 
-  private static final int DOCUMENT_SIZE = 1 << 10;
-//  private static final int NUM_COLLECTIONS = 10;
+//  private static final int DOCUMENT_SIZE = 1 << 10;
+  private static final int NUM_COLLECTIONS = 10;
 //  private static final int NUM_DOCUMENTS = 100;
-//  private static final int NUM_READERS = 1;
-  private static final int NUM_WRITERS = 1;
+  private static final int NUM_READERS = 1 * 100;
+//  private static final int NUM_WRITERS = 32;
   private static final Logger logger = Logger.getLogger("Main");
 
-//  private static List<Kvrpcpb.KvPair> scan(RawKVClient client, String collection) {
-//    return client.scan(ByteString.copyFromUtf8(collection), 100);
-//  }
-
-  private static void put(RawKVClient client, String collection, String key, String value) {
-    client.put(ByteString.copyFromUtf8(String.format("%s#%s", collection, key)),
-            ByteString.copyFromUtf8(value));
+  private static List<Kvrpcpb.KvPair> scan(RawKVClient client, String collection) {
+    return client.scan(ByteString.copyFromUtf8(collection), 100);
   }
 
-//  private static class ReadAction {
-//    String collection;
-//
-//    ReadAction(String collection) {
-//      this.collection = collection;
-//    }
-//  }
+  private static void put(RawKVClient client, String collection, String key, String value) {
+    client.put(ByteString.copyFromUtf8(String.format("%s#%s", collection, key)), ByteString.copyFromUtf8(value));
+  }
+
+  private static class ReadAction {
+    String collection;
+
+    ReadAction(String collection) {
+      this.collection = collection;
+    }
+  }
 
   private static class WriteAction {
     String collection;
@@ -57,41 +56,19 @@ public class Temp {
     TiConfiguration conf = TiConfiguration.createRawDefault(PD_ADDRESS);
     TiSession session = TiSession.create(conf);
 
-//    Channel<Long> readTimes = new BufferedChannel<>(NUM_READERS);
-    Channel<Long> writeTimes = new BufferedChannel<>(NUM_WRITERS);
+    Channel<Long> readTimes = new BufferedChannel<>(NUM_READERS * 10);
+//    Channel<Long> writeTimes = new BufferedChannel<>(NUM_WRITERS * 10);
 
-//    Channel<ReadAction> readActions = new BufferedChannel<>(NUM_READERS);
-    Channel<WriteAction> writeActions = new BufferedChannel<>(NUM_WRITERS);
-
-//    new Thread(() -> {
-//      Random rand = new Random(System.nanoTime());
-//      while (true) {
-//        try {
-//          readActions.send(new ReadAction(String.format("collection-%d", rand.nextInt(NUM_COLLECTIONS))));
-//        } catch (InterruptedException e) {
-//          logger.warn("ReadAction Interrupted");
-//          return;
-//        } catch (ChannelClosedException e) {
-//          logger.warn("Channel has closed");
-//          return;
-//        }
-//      }
-//    }).start();
+    Channel<ReadAction> readActions = new BufferedChannel<>(NUM_READERS * 10);
+//    Channel<WriteAction> writeActions = new BufferedChannel<>(NUM_WRITERS * 10);
 
     new Thread(() -> {
       Random rand = new Random(System.nanoTime());
       while (true) {
         try {
-//          writeActions.send(new WriteAction(String.format("collection-%d", rand.nextInt(NUM_COLLECTIONS)),
-//                  String.format("%d", rand.nextInt(NUM_DOCUMENTS)),
-//                  makeTerm(rand, DOCUMENT_SIZE)));
-          for ( int i = 0; i<100000; i++) {
-            writeActions.send(new WriteAction(String.format("collection-%d", i),
-                    String.format("%d", i),
-                    makeTerm(rand, DOCUMENT_SIZE)));
-          }
+          readActions.send(new ReadAction(String.format("collection-%d", rand.nextInt(NUM_COLLECTIONS))));
         } catch (InterruptedException e) {
-          logger.warn("WriteAction Interrupted");
+          logger.warn("ReadAction Interrupted");
           return;
         } catch (ChannelClosedException e) {
           logger.warn("Channel has closed");
@@ -100,19 +77,23 @@ public class Temp {
       }
     }).start();
 
+//    new Thread(() -> {
+//      Random rand = new Random(System.nanoTime());
+//      while (true) {
+//        try {
+//          writeActions.send(new WriteAction(String.format("collection-%d", rand.nextInt(NUM_COLLECTIONS)), String.format("%d", rand.nextInt(NUM_DOCUMENTS)), makeTerm(rand, DOCUMENT_SIZE)));
+//        } catch (InterruptedException e) {
+//          logger.warn("WriteAction Interrupted");
+//          return;
+//        } catch (ChannelClosedException e) {
+//          logger.warn("Channel has closed");
+//          return;
+//        }
+//      }
+//    }).start();
 
-    for (int i = 0; i < NUM_WRITERS; i++) {
-      RawKVClient client;
-      try {
-        client = session.createRawClient();
-      } catch (Exception e) {
-        logger.fatal("error connecting to kv store: ", e);
-        continue;
-      }
-      runWrite(client, writeActions, writeTimes);
-    }
 
-//    for (int i = 0; i < NUM_READERS; i++) {
+//    for (int i = 0; i < NUM_WRITERS; i++) {
 //      RawKVClient client;
 //      try {
 //        client = session.createRawClient();
@@ -120,14 +101,25 @@ public class Temp {
 //        logger.fatal("error connecting to kv store: ", e);
 //        continue;
 //      }
-//      runRead(client, readActions, readTimes);
+//      runWrite(client, writeActions, writeTimes);
 //    }
 
-//    analyze("R", readTimes);
-    analyze("W", writeTimes);
+    for (int i = 0; i < NUM_READERS; i++) {
+      RawKVClient client;
+      try {
+        client = session.createRawClient();
+      } catch (Exception e) {
+        logger.fatal("error connecting to kv store: ", e);
+        continue;
+      }
+      runRead(client, readActions, readTimes);
+    }
+
+    analyze("R", readTimes);
+//    analyze("W", writeTimes);
 
     System.out.println("Hello World!");
-//    while (true) ;
+    while (true) ;
   }
 
   private static void resolve(Channel<Long> timings, long start) {
@@ -141,31 +133,13 @@ public class Temp {
     }
   }
 
-  private static void runWrite(RawKVClient client, Channel<WriteAction> action, Channel<Long> timings) {
-    new Thread(() -> {
-      WriteAction writeAction;
-      try {
-        while ((writeAction = action.receive()) != null) {
-          long start = System.nanoTime();
-          put(client, writeAction.collection, writeAction.key, writeAction.value);
-          resolve(timings, start);
-        }
-      } catch (InterruptedException e) {
-        Thread.currentThread().interrupt();
-        System.out.println("Current thread interrupted. Test fail.");
-      } catch (ChannelClosedException e) {
-        logger.warn("Channel has closed");
-      }
-    }).start();
-  }
-
-//  private static void runRead(RawKVClient client, Channel<ReadAction> action, Channel<Long> timings) {
+//  private static void runWrite(RawKVClient client, Channel<WriteAction> action, Channel<Long> timings) {
 //    new Thread(() -> {
-//      ReadAction readAction;
+//      WriteAction writeAction;
 //      try {
-//        while ((readAction = action.receive()) != null) {
+//        while ((writeAction = action.receive()) != null) {
 //          long start = System.nanoTime();
-//          scan(client, readAction.collection);
+//          put(client, writeAction.collection, writeAction.key, writeAction.value);
 //          resolve(timings, start);
 //        }
 //      } catch (InterruptedException e) {
@@ -176,6 +150,24 @@ public class Temp {
 //      }
 //    }).start();
 //  }
+
+  private static void runRead(RawKVClient client, Channel<ReadAction> action, Channel<Long> timings) {
+    new Thread(() -> {
+      ReadAction readAction;
+      try {
+        while ((readAction = action.receive()) != null) {
+          long start = System.nanoTime();
+          scan(client, readAction.collection);
+          resolve(timings, start);
+        }
+      } catch (InterruptedException e) {
+        Thread.currentThread().interrupt();
+        System.out.println("Current thread interrupted. Test fail.");
+      } catch (ChannelClosedException e) {
+        logger.warn("Channel has closed");
+      }
+    }).start();
+  }
 
   private static final char[] LETTER_BYTES = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ".toCharArray();
 
