@@ -20,8 +20,8 @@ public class Main {
   private static final int DOCUMENT_SIZE = 1 << 10;  /// value
   private static final int NUM_COLLECTIONS = 10; /// random ranage
   private static final int NUM_DOCUMENTS = 100; /// key
-  private static final int NUM_READERS = 1 * 10;
-  private static final int NUM_WRITERS = 32 ;
+  private static final int NUM_READERS = 1 * 100;
+  private static final int NUM_WRITERS = 32 * 3;
   private static final Logger logger = Logger.getLogger("Main");
 
   private static List<Kvrpcpb.KvPair> scan(RawKVClient client, String collection) {
