@@ -17,11 +17,11 @@ public class Main {
 //  private static final String PD_ADDRESS = "172.16.22.140:2379,172.16.22.141:2379,172.16.22.142:2379";
   private static final String PD_ADDRESS = "10.3.8.110:2379,10.3.9.228:2379";
 
-  private static final int DOCUMENT_SIZE = 1 << 10;
-  private static final int NUM_COLLECTIONS = 10;
-  private static final int NUM_DOCUMENTS = 100;
-  private static final int NUM_READERS = 1;
-  private static final int NUM_WRITERS = 32;
+  private static final int DOCUMENT_SIZE = 1 << 10;  /// value
+  private static final int NUM_COLLECTIONS = 10; /// random ranage
+  private static final int NUM_DOCUMENTS = 100; /// key
+  private static final int NUM_READERS = 1 * 10;
+  private static final int NUM_WRITERS = 32 ;
   private static final Logger logger = Logger.getLogger("Main");
 
   private static List<Kvrpcpb.KvPair> scan(RawKVClient client, String collection) {
@@ -82,7 +82,9 @@ public class Main {
       Random rand = new Random(System.nanoTime());
       while (true) {
         try {
-          writeActions.send(new WriteAction(String.format("collection-%d", rand.nextInt(NUM_COLLECTIONS)), String.format("%d", rand.nextInt(NUM_DOCUMENTS)), makeTerm(rand, DOCUMENT_SIZE)));
+          writeActions.send(new WriteAction(String.format("collection-%d", rand.nextInt(NUM_COLLECTIONS)),
+                  String.format("%d", rand.nextInt(NUM_DOCUMENTS)),
+                  makeTerm(rand, DOCUMENT_SIZE)));
         } catch (InterruptedException e) {
           logger.warn("WriteAction Interrupted");
           return;
