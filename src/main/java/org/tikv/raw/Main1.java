@@ -14,8 +14,8 @@ import java.util.Random;
 
 public class Main1 {
 //  private static final String PD_ADDRESS = "127.0.0.1:2379";
-  private static final String PD_ADDRESS = "172.16.22.140:2379,172.16.22.141:2379,172.16.22.142:2379";
-//  private static final String PD_ADDRESS = "10.3.8.110:2379,10.3.9.228:2379";
+//  private static final String PD_ADDRESS = "172.16.22.140:2379,172.16.22.141:2379,172.16.22.142:2379";
+  private static final String PD_ADDRESS = "10.3.8.110:2379,10.3.9.228:2379";
 
   private static final int DOCUMENT_SIZE = 1 << 10;  /// value
   private static final int NUM_COLLECTIONS = 10*100; /// random range, bucket
