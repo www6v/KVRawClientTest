@@ -122,7 +122,8 @@
                 <configuration>
                     <archive>
                         <manifest>
-                            <mainClass>org.tikv.raw.Main</mainClass>
+<!--                            <mainClass>org.tikv.raw.Main</mainClass>-->
+                            <mainClass>org.tikv.raw.Main1</mainClass>
                         </manifest>
                     </archive>
                     <descriptorRefs>
