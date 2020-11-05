@@ -69,11 +69,14 @@ public class Main1 {
     TiSession session = TiSession.create(conf);
 
     Channel<Long> readTimes = new BufferedChannel<>(NUM_READERS);
+    Channel<Long> readGetTimes = new BufferedChannel<>(NUM_GET_READERS);  /////
     Channel<Long> writeTimes = new BufferedChannel<>(NUM_WRITERS);
 
     Channel<ReadAction> readActions = new BufferedChannel<>(NUM_READERS);
+    Channel<ReadAction> readGetActions = new BufferedChannel<>(NUM_GET_READERS);  /////
     Channel<WriteAction> writeActions = new BufferedChannel<>(NUM_WRITERS);
 
+    /// scan  producer
     new Thread(() -> {
       Random rand = new Random(System.nanoTime());
       while (true) {
@@ -89,6 +92,7 @@ public class Main1 {
       }
     }).start();
 
+    /// put producer
     new Thread(() -> {
       Random rand = new Random(System.nanoTime());
       while (true) {
@@ -105,6 +109,24 @@ public class Main1 {
         }
       }
     }).start();
+
+
+    /// get  producer
+    new Thread(() -> {
+      Random rand = new Random(System.nanoTime());
+      while (true) {
+        try {
+          readGetActions.send(new ReadAction(String.format("collection-%d", rand.nextInt(NUM_COLLECTIONS))));
+        } catch (InterruptedException e) {
+          logger.warn("ReadAction Interrupted");
+          return;
+        } catch (ChannelClosedException e) {
+          logger.warn("Channel has closed");
+          return;
+        }
+      }
+    }).start();
+
 
 //    RawKVClient client = session.createRawClient();
     /// put
@@ -140,11 +162,12 @@ public class Main1 {
         logger.fatal("error connecting to kv store: ", e);
         continue;
       }
-      runGetRead(client, readActions, readTimes);
+      runGetRead(client, readGetActions, readGetTimes);
     }
 
     analyze("R", readTimes);
     analyze("W", writeTimes);
+    analyze("GET", readGetTimes);
 
     System.out.println("Hello World!");
     while (true) ;
