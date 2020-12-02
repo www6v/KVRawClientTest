@@ -3,29 +3,40 @@ package org.tikv.raw;
 import com.flipkart.lois.channel.api.Channel;
 import com.flipkart.lois.channel.exceptions.ChannelClosedException;
 import com.flipkart.lois.channel.impl.BufferedChannel;
+import org.apache.log4j.Logger;
 import org.tikv.common.TiConfiguration;
 import org.tikv.common.TiSession;
 import org.tikv.kvproto.Kvrpcpb;
-import org.apache.log4j.Logger;
 import shade.com.google.protobuf.ByteString;
 
 import java.util.List;
 import java.util.Random;
 
-public class Main {
+public class Main1 {
 //  private static final String PD_ADDRESS = "127.0.0.1:2379";
 //  private static final String PD_ADDRESS = "172.16.22.140:2379,172.16.22.141:2379,172.16.22.142:2379";
   private static final String PD_ADDRESS = "10.3.8.110:2379,10.3.9.228:2379";
 
   private static final int DOCUMENT_SIZE = 1 << 10;  /// value
-  private static final int NUM_COLLECTIONS = 10*100; /// random ranage
+  private static final int NUM_COLLECTIONS = 10*100; /// random range, bucket
   private static final int NUM_DOCUMENTS = 100; /// key
+
+  private static final int NUM_GET_READERS = 100;  ///
   private static final int NUM_READERS = 1 * 50;  /// 100: tps 4000,  50: 4000
   private static final int NUM_WRITERS = 32 * 2;  /// 100: tps 5000,  60: 6000
+
   private static final Logger logger = Logger.getLogger("Main");
 
   private static List<Kvrpcpb.KvPair> scan(RawKVClient client, String collection) {
     return client.scan(ByteString.copyFromUtf8(collection), 100);
+  }
+
+  private static ByteString get(RawKVClient client, String collection) {
+    Random rand = new Random(System.nanoTime());
+
+    String key = String.format("collection-%d", rand.nextInt(NUM_COLLECTIONS))+
+            String.format("%d", rand.nextInt(NUM_DOCUMENTS));
+    return client.get(ByteString.copyFromUtf8(key));
   }
 
   private static void put(RawKVClient client, String collection, String key, String value) {
@@ -58,11 +69,14 @@ public class Main {
     TiSession session = TiSession.create(conf);
 
     Channel<Long> readTimes = new BufferedChannel<>(NUM_READERS);
+    Channel<Long> readGetTimes = new BufferedChannel<>(NUM_GET_READERS);  /////
     Channel<Long> writeTimes = new BufferedChannel<>(NUM_WRITERS);
 
     Channel<ReadAction> readActions = new BufferedChannel<>(NUM_READERS);
+    Channel<ReadAction> readGetActions = new BufferedChannel<>(NUM_GET_READERS);  /////
     Channel<WriteAction> writeActions = new BufferedChannel<>(NUM_WRITERS);
 
+    /// scan  producer
     new Thread(() -> {
       Random rand = new Random(System.nanoTime());
       while (true) {
@@ -78,12 +92,14 @@ public class Main {
       }
     }).start();
 
+    /// put producer
     new Thread(() -> {
       Random rand = new Random(System.nanoTime());
       while (true) {
         try {
           writeActions.send(new WriteAction(String.format("collection-%d", rand.nextInt(NUM_COLLECTIONS)),
-                  String.format("%d", rand.nextInt(NUM_DOCUMENTS)), makeTerm(rand, DOCUMENT_SIZE)));
+                  String.format("%d", rand.nextInt(NUM_DOCUMENTS)),
+                  makeTerm(rand, DOCUMENT_SIZE)));
         } catch (InterruptedException e) {
           logger.warn("WriteAction Interrupted");
           return;
@@ -95,6 +111,25 @@ public class Main {
     }).start();
 
 
+    /// get  producer
+    new Thread(() -> {
+      Random rand = new Random(System.nanoTime());
+      while (true) {
+        try {
+          readGetActions.send(new ReadAction(String.format("collection-%d", rand.nextInt(NUM_COLLECTIONS))));
+        } catch (InterruptedException e) {
+          logger.warn("ReadAction Interrupted");
+          return;
+        } catch (ChannelClosedException e) {
+          logger.warn("Channel has closed");
+          return;
+        }
+      }
+    }).start();
+
+
+//    RawKVClient client = session.createRawClient();
+    /// put
     for (int i = 0; i < NUM_WRITERS; i++) {
       RawKVClient client;
       try {
@@ -106,6 +141,7 @@ public class Main {
       runWrite(client, writeActions, writeTimes);
     }
 
+    /// scan
     for (int i = 0; i < NUM_READERS; i++) {
       RawKVClient client;
       try {
@@ -117,8 +153,21 @@ public class Main {
       runRead(client, readActions, readTimes);
     }
 
+    /// get
+    for (int i = 0; i < NUM_GET_READERS; i++) {
+      RawKVClient client;
+      try {
+        client = session.createRawClient();
+      } catch (Exception e) {
+        logger.fatal("error connecting to kv store: ", e);
+        continue;
+      }
+      runGetRead(client, readGetActions, readGetTimes);
+    }
+
     analyze("R", readTimes);
     analyze("W", writeTimes);
+    analyze("GET", readGetTimes);
 
     System.out.println("Hello World!");
     while (true) ;
@@ -160,6 +209,25 @@ public class Main {
         while ((readAction = action.receive()) != null) {
           long start = System.nanoTime();
           scan(client, readAction.collection);
+          resolve(timings, start);
+        }
+      } catch (InterruptedException e) {
+        Thread.currentThread().interrupt();
+        System.out.println("Current thread interrupted. Test fail.");
+      } catch (ChannelClosedException e) {
+        logger.warn("Channel has closed");
+      }
+    }).start();
+  }
+
+  private static void runGetRead(RawKVClient client, Channel<ReadAction> action, Channel<Long> timings) {
+    new Thread(() -> {
+      ReadAction readAction;
+      try {
+        while ((readAction = action.receive()) != null) {
+          long start = System.nanoTime();
+//          scan(client, readAction.collection);
+          get(client, readAction.collection);
           resolve(timings, start);
         }
       } catch (InterruptedException e) {
