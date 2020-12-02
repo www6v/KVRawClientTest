@@ -17,7 +17,8 @@ public class Main {
 //  private static final String PD_ADDRESS = "172.16.22.140:2379,172.16.22.141:2379,172.16.22.142:2379";
   private static final String PD_ADDRESS = "10.3.8.110:2379,10.3.9.228:2379";
 
-  private static final int DOCUMENT_SIZE = 1 << 10;  /// value
+//  private static final int DOCUMENT_SIZE = 1 << 10;  /// value
+  private static final int DOCUMENT_SIZE = 1 << 12; // 1024*4 == 4086
   private static final int NUM_COLLECTIONS = 10*100; /// random ranage
   private static final int NUM_DOCUMENTS = 100; /// key
   private static final int NUM_READERS = 1 * 50;  /// 100: tps 4000,  50: 4000
